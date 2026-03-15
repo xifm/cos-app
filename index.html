@@ -95,7 +95,6 @@
         .video-container:fullscreen { max-height: none !important; width: 100vw !important; height: 100vh !important; }
         .video-container:-webkit-full-screen { max-height: none !important; width: 100vw !important; height: 100vh !important; }
         
-        /* 🚀 独立封面层：绝不影响底层 video 比例 */
         #video-poster { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: contain; background-position: center; background-repeat: no-repeat; z-index: 2; pointer-events: none; transition: opacity 0.3s; }
         video { width: 100%; height: 100%; object-fit: contain; outline: none; z-index: 1; }
         
@@ -232,7 +231,7 @@
         let previewHlsInstance = null;
         let videoDataMap = {}; 
         
-        // 🚀 双重保活引擎与防崩变量
+        // 🚀 双层保活引擎变量
         let historyCache = {}; 
         let currentStateId = 'init';
         let mediaCache = {}; 
@@ -262,7 +261,7 @@
                 let keys = Object.keys(mediaCache);
                 while (keys.length > 15) { 
                     let k = keys.shift();
-                    // 🌟 免死金牌：绝不清理当前正在播放的视频缓存
+                    // 🌟 终极防崩：绝不清理当前正在播放的视频缓存
                     if (windowCurrentPlayingId && k === windowCurrentPlayingId) {
                         keys.push(k);
                         continue;
@@ -293,7 +292,6 @@
                     let displayObj = document.getElementById('current-page-display'); 
                     if(displayObj) displayObj.innerText = `${currentPage} / ${MAX_PAGE > 999 ? '?' : MAX_PAGE}`;
                     
-                    // 🚀 确保 DOM 完全撑开后再滚动
                     requestAnimationFrame(() => { setTimeout(() => { window.scrollTo(0, historyCache[s.parentStateId].scrollY || 0); }, 50); });
                 }
                 currentCategory = s.category; currentPage = s.page; 
@@ -322,7 +320,7 @@
                     MAX_PAGE = historyCache[currentStateId].maxPage;
                     currentPage = historyCache[currentStateId].currentPage;
                     
-                    // 🚀 核心修复：给浏览器渲染图片占位的时间再滚动
+                    // 🚀 核心防回顶修复：延迟滚动
                     requestAnimationFrame(() => { setTimeout(() => { window.scrollTo(0, historyCache[currentStateId].scrollY || 0); }, 50); });
                 } else {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -336,7 +334,7 @@
             if(!scrollTimer) {
                 scrollTimer = setTimeout(() => {
                     const modal = document.getElementById('player-modal');
-                    // 🚀 核心锁定：如果正在播放器里，绝对禁止写入并覆盖背景的滚动条位置！
+                    // 🚀 彻底锁死滚动记忆：弹窗打开时绝不更新底层页面高度
                     if (modal && modal.classList.contains('active')) {
                         scrollTimer = null;
                         return;
@@ -357,7 +355,24 @@
         }
 
         function switchCategory(queryStr, btnElement) { executeActionWithClose(() => { document.querySelectorAll('.nav-bar button').forEach(btn => btn.classList.remove('active')); if(btnElement) btnElement.classList.add('active'); currentCategory = queryStr; currentPage = 1; currentStateId = 'state_' + Date.now(); pushHistoryState({ type: 'list', category: currentCategory, page: currentPage, searchInput: '', stateId: currentStateId }); window.scrollTo({ top: 0, behavior: 'smooth' }); fetchVideos(currentPage, false); }); }
-        function executeSearch(forcedKeyword) { executeActionWithClose(() => { const keyword = forcedKeyword || document.getElementById('search-input').value.trim(); if (!keyword) return alert('请输入搜索内容！'); document.querySelectorAll('.nav-bar button').forEach(btn => btn.classList.remove('active')); document.getElementById('search-input').value = keyword; currentCategory = `kw=${encodeURIComponent(keyword)}`; currentPage = 1; currentStateId = 'state_' + Date.now(); pushHistoryState({ type: 'list', category: currentCategory, page: currentPage, searchInput: keyword, stateId: currentStateId }); window.scrollTo({ top: 0, behavior: 'smooth' }); fetchVideos(currentPage, false); }); }
+        
+        // 🚀 搜索入口改造：标记启用“双引擎”
+        function executeSearch(forcedKeyword) { 
+            executeActionWithClose(() => { 
+                const keyword = forcedKeyword || document.getElementById('search-input').value.trim(); 
+                if (!keyword) return alert('请输入搜索内容！'); 
+                document.querySelectorAll('.nav-bar button').forEach(btn => btn.classList.remove('active')); 
+                document.getElementById('search-input').value = keyword; 
+                
+                currentCategory = `custom_search=${encodeURIComponent(keyword)}`; 
+                currentPage = 1; 
+                currentStateId = 'state_' + Date.now(); 
+                pushHistoryState({ type: 'list', category: currentCategory, page: currentPage, searchInput: keyword, stateId: currentStateId }); 
+                window.scrollTo({ top: 0, behavior: 'smooth' }); 
+                fetchVideos(currentPage, false); 
+            }); 
+        }
+        
         function searchByTag(tag) { executeActionWithClose(() => { document.querySelectorAll('.nav-bar button').forEach(btn => btn.classList.remove('active')); document.getElementById('search-input').value = tag; currentCategory = `tags=${encodeURIComponent(tag)}`; currentPage = 1; currentStateId = 'state_' + Date.now(); pushHistoryState({ type: 'list', category: currentCategory, page: currentPage, searchInput: tag, stateId: currentStateId }); window.scrollTo({ top: 0, behavior: 'smooth' }); fetchVideos(currentPage, false); }); }
         function setColumns(num, save = true) { const grid = document.getElementById('result'); grid.className = 'grid-container'; grid.classList.add(`col-${num}`); document.querySelectorAll('.layout-bar button').forEach(btn => btn.classList.remove('active')); document.getElementById(`btn-col-${num}`).classList.add('active'); if(save) localStorage.setItem('cos_layout', num); }
         function promptJump() { let target = prompt(`当前总数 ${MAX_PAGE===999 ? '未知' : MAX_PAGE} 页，请输入跳转页码：`, currentPage); if(target !== null && target.trim() !== '') { let p = parseInt(target); if(p >= 1 && (p <= MAX_PAGE || MAX_PAGE === 999)) { currentPage = p; currentStateId = 'state_' + Date.now(); pushHistoryState({ type: 'list', category: currentCategory, page: currentPage, searchInput: document.getElementById('search-input').value, stateId: currentStateId }); window.scrollTo({ top: 0, behavior: 'smooth' }); fetchVideos(currentPage, false); } else alert("输入的页码不合法！"); } }
@@ -466,6 +481,7 @@
         videoContainer.addEventListener('mouseup', endTouch); videoContainer.addEventListener('mouseleave', endTouch);
         videoContainer.addEventListener('dblclick', toggleFullScreen);
 
+        // 播放时隐藏自研独立封面
         videoElement.onplaying = () => {
             const p = document.getElementById('video-poster');
             p.style.opacity = '0';
@@ -506,8 +522,6 @@
         function renderAndOpenPlayer(videoDataStr, fromHistory = false) {
             const modal = document.getElementById('player-modal');
             let video = JSON.parse(decodeURIComponent(videoDataStr));
-            
-            // 🚀 核心防崩 1：更广泛的 ID 抽取
             let vId = video.id || video.vod_id || video.vod_url_id || video.url_id || video.v_id || video.sn || video.number || video.code;
             vId = String(vId || '');
 
@@ -526,7 +540,7 @@
             }
 
             videoElement.setAttribute('data-vid', vId);
-            windowCurrentPlayingId = vId; // 更新当前活跃视频ID
+            windowCurrentPlayingId = vId; 
             modal.classList.add('active');
             
             const titleEl = document.getElementById('player-title');
@@ -557,15 +571,13 @@
             if (mediaCache[vId] && mediaCache[vId].urls && mediaCache[vId].urls.length > 0) {
                 routesArea.innerHTML = mediaCache[vId].routesHtml || '';
                 let seekTime = mediaCache[vId].currentTime || 0;
-                // 从缓存唤醒，默认纯净暂停态
-                playVideoRoute(mediaCache[vId].urls[0], false, seekTime);
+                playVideoRoute(mediaCache[vId].urls[0], false, seekTime); // false 确保暂停
             } else {
                 routesArea.innerHTML = `<div class="spinner" style="width:14px;height:14px;margin-right:4px;"></div><span style="color:var(--text-muted); font-size:13px;">寻址中...</span>`;
                 fetchVideoRoutes(vId);
             }
         }
 
-        // 🚀 核心防崩 2：究极寻址函数
         async function fetchVideoRoutes(fetchId) {
             const routesArea = document.getElementById('route-buttons-area');
             
@@ -681,7 +693,7 @@
                                 let seekTime = mediaCache[fetchId].currentTime || 0;
                                 saveMediaCache();
 
-                                playVideoRoute(firstUrl, false, seekTime);
+                                playVideoRoute(firstUrl, false, seekTime); // false 确保暂停
                                 return;
                             }
                         }
@@ -695,7 +707,6 @@
             }
         }
 
-        // 统一播放入口，自动播放默认关闭
         function playVideoRoute(videoUrl, autoPlay = false, seekTime = 0) {
             window.currentVideoUrl = videoUrl; 
             
@@ -706,9 +717,7 @@
             const onReadyToPlay = () => {
                 if (seekTime > 0) videoElement.currentTime = seekTime;
                 videoElement.playbackRate = currentFixedSpeed; 
-                if (autoPlay) {
-                    videoElement.play().catch(e=>console.log("拦截自动播放"));
-                }
+                if (autoPlay) videoElement.play().catch(e=>console.log("拦截自动播放"));
             };
 
             if (videoUrl.includes('.m3u8')) {
@@ -787,41 +796,27 @@
         function escapeHtml(str) { return str ? String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;') : "未命名"; }
         const errImg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23334155'/><text x='50%' y='50%' fill='%2394a3b8' font-family='sans-serif' font-size='14' text-anchor='middle'>封面</text></svg>";
 
-        async function fetchVideos(pageNumber, isAppend = false) {
-            if(isFetching) return;
-            isFetching = true;
-            
-            let fetchStateId = currentStateId;
-            
-            const resultDiv = document.getElementById("result"), statusMsg = document.getElementById("status-msg"), pageDisplay = document.getElementById('current-page-display'), bottomLoading = document.getElementById('bottom-loading');
-            
-            if(!isAppend) { resultDiv.innerHTML = ""; statusMsg.innerHTML = `<div class="spinner"></div>数据加载中...`; bottomLoading.style.display = "none"; videoDataMap = {};} 
-            else { bottomLoading.style.display = "block"; }
-            pageDisplay.innerText = `${pageNumber} / 加载中`;
-
+        // 🚀 核心优化引擎提取：方便并发查询
+        async function fetchAndParseAPI(url) {
             const token = "CosAppMakeBigMoney," + Math.floor(Date.now() / 1000);
-            let apiPage = pageNumber - 1; if(apiPage < 0) apiPage = 0;
-            const apiUrl = `https://api.cos-dkop.net/api/app/v1/video/lists?${currentCategory}&page=${apiPage}&limit=30`;
-
             try {
-                const response = await fetch(apiUrl, { method: "GET", headers: { "Content-Type": "application/json", "Tokenparam": token }});
+                const response = await fetch(url, { method: "GET", headers: { "Content-Type": "application/json", "Tokenparam": token }});
                 const json = await response.json();
                 
                 if (json.code === 200 || json.code === 0) {
                     const decryptedStr = decryptData(json.data);
                     if (decryptedStr) {
                         const parsedData = JSON.parse(decryptedStr); 
-                        
                         let extractedTotalPages = 0;
                         const searchTargets = [parsedData, parsedData.data, parsedData.info, parsedData.list, parsedData.page, json, json.data];
-                        const pageFields = ['last_page', 'total_page', 'totalPage', 'pages', 'pagecount', 'max_page'];
-                        const totalFields = ['total', 'count', 'totalCount', 'total_num', 'totalcnt', 'totalCnt'];
-
+                        
                         for (let obj of searchTargets) {
                             if (!obj || typeof obj !== 'object' || Array.isArray(obj)) continue;
-                            for (let field of pageFields) { if (obj[field] !== undefined) { extractedTotalPages = Number(obj[field]); break; } }
+                            for (let field of ['last_page', 'total_page', 'totalPage', 'pages', 'pagecount', 'max_page']) { 
+                                if (obj[field] !== undefined) { extractedTotalPages = Number(obj[field]); break; } 
+                            }
                             if (extractedTotalPages > 0) break;
-                            for (let field of totalFields) {
+                            for (let field of ['total', 'count', 'totalCount', 'total_num', 'totalcnt', 'totalCnt']) {
                                 if (obj[field] !== undefined) {
                                     let totalVal = Number(obj[field]); let limit = Number(obj.limit || 30);
                                     if (totalVal > 0) { extractedTotalPages = (Math.ceil(totalVal/limit) < currentPage && totalVal >= currentPage) ? totalVal : Math.ceil(totalVal / limit); break; }
@@ -831,72 +826,130 @@
                         }
 
                         let videoList = Array.isArray(parsedData) ? parsedData : (parsedData.list || (parsedData.data && parsedData.data.list) || parsedData.data || parsedData.info || []);
-
-                        if (extractedTotalPages <= 0 || isNaN(extractedTotalPages)) {
-                            if (videoList.length === 30) { MAX_PAGE = 999; pageDisplay.innerText = `${currentPage} / ?`; } 
-                            else { MAX_PAGE = currentPage; pageDisplay.innerText = `${currentPage} / ${MAX_PAGE}`; }
-                        } else {
-                            MAX_PAGE = extractedTotalPages;
-                            if (MAX_PAGE < currentPage && videoList.length > 0) MAX_PAGE = currentPage + 1;
-                            pageDisplay.innerText = `${currentPage} / ${MAX_PAGE}`;
-                        }
-
-                        if(videoList.length === 0) { 
-                            if(!isAppend) statusMsg.innerHTML = "📭 这个频道下没有任何内容"; 
-                            bottomLoading.style.display = "none"; isFetching = false; return; 
-                        }
-                        statusMsg.innerHTML = "";
-                        if(currentPage < MAX_PAGE) bottomLoading.style.display = "block"; else bottomLoading.style.display = "none";
-                        
-                        let html = '';
-                        videoList.forEach(video => {
-                            let internalId = video.id || video.vod_id || video.vod_url_id || video.url_id || video.v_id || video.sn || video.number || ('vid_' + Math.random().toString(36).substr(2, 9));
-                            videoDataMap[internalId] = video; 
-                            
-                            let badgeHtml = "";
-                            if (video.duration) badgeHtml += `<div class="badge duration">${formatDuration(video.duration)}</div>`;
-                            if (video.is_vip === "1" || video.is_vip === true || (video.tags && video.tags.includes('独家'))) badgeHtml += `<div class="badge vip">VIP独家</div>`;
-                            let channelName = video.channel_name || "同人";
-                            badgeHtml += `<div class="badge channel">${channelName}</div>`;
-
-                            let uploadDate = video.adddate || formatTime(video.created_at || video.time || video.vod_time);
-                            let addTimeText = video.addtime ? `<span>🕒 ${video.addtime}</span>` : "";
-                            let briefTagsHtml = createJumpTags(video.cos_works, 'kw') + createJumpTags(video.cos_role || video.actor, 'kw');
-                            let safeTitle = escapeHtml(video.title);
-
-                            html += `
-                            <div class="video-card" onclick="preparePlayer('${internalId}')">
-                                <div class="thumb-wrapper">
-                                    <img class="thumb-bg" src="${video.photo || ''}" alt="" loading="lazy" onerror="this.src='${errImg}'">
-                                    <img class="thumb-img" src="${video.photo || ''}" alt="封面" loading="lazy" onerror="this.src='${errImg}'">
-                                    ${badgeHtml}
-                                </div>
-                                <div class="card-content">
-                                    <h4 class="video-title" title="${safeTitle}">${safeTitle}</h4>
-                                    <div class="time-row">
-                                        <span>📅 ${uploadDate}</span>
-                                        ${addTimeText}
-                                    </div>
-                                    <div class="tag-row">${briefTagsHtml}</div>
-                                </div>
-                            </div>`;
-                        });
-                        
-                        if(isAppend) resultDiv.insertAdjacentHTML('beforeend', html);
-                        else resultDiv.innerHTML = html;
-
-                        historyCache[fetchStateId] = {
-                            html: resultDiv.innerHTML,
-                            videoMap: Object.assign({}, videoDataMap),
-                            maxPage: MAX_PAGE,
-                            currentPage: currentPage,
-                            scrollY: window.scrollY
-                        };
-                        saveCacheToStorage();
-
-                    } else { if(!isAppend) statusMsg.innerHTML = "❌ 数据解密失败"; }
+                        return { list: videoList, maxPage: extractedTotalPages > 0 ? extractedTotalPages : (videoList.length === 30 ? 999 : currentPage) };
+                    }
                 }
-            } catch (error) { if(!isAppend) statusMsg.innerHTML = `📡 网络异常...`; }
+            } catch (error) { console.error("Fetch API Error:", error); }
+            return { list: [], maxPage: 0 };
+        }
+
+        // 🚀 核心检索渲染引擎：引入前端并发去重检索
+        async function fetchVideos(pageNumber, isAppend = false) {
+            if(isFetching) return;
+            isFetching = true;
+            
+            let fetchStateId = currentStateId;
+            const resultDiv = document.getElementById("result");
+            const statusMsg = document.getElementById("status-msg");
+            const pageDisplay = document.getElementById('current-page-display');
+            const bottomLoading = document.getElementById('bottom-loading');
+            
+            if(!isAppend) { 
+                resultDiv.innerHTML = ""; 
+                statusMsg.innerHTML = `<div class="spinner"></div>数据跨域检索中...`; 
+                bottomLoading.style.display = "none"; 
+                videoDataMap = {};
+            } else { 
+                bottomLoading.style.display = "block"; 
+            }
+            pageDisplay.innerText = `${pageNumber} / 加载中`;
+
+            let apiPage = pageNumber - 1; if(apiPage < 0) apiPage = 0;
+            
+            let finalVideoList = [];
+            let maxCalculatedPage = 0;
+
+            // 🌟 如果是顶级搜索入口进入，启动并发双重引擎
+            if (currentCategory.startsWith('custom_search=')) {
+                let keyword = currentCategory.split('=')[1];
+                let urlKw = `https://api.cos-dkop.net/api/app/v1/video/lists?kw=${keyword}&page=${apiPage}&limit=30`;
+                let urlTags = `https://api.cos-dkop.net/api/app/v1/video/lists?tags=${keyword}&page=${apiPage}&limit=30`;
+
+                let [resKw, resTags] = await Promise.all([
+                    fetchAndParseAPI(urlKw),
+                    fetchAndParseAPI(urlTags)
+                ]);
+
+                let combinedRawList = [...resKw.list, ...resTags.list];
+                maxCalculatedPage = Math.max(resKw.maxPage, resTags.maxPage);
+
+                // 去重组装
+                let uniqueSet = new Set();
+                combinedRawList.forEach(video => {
+                    let vId = String(video.id || video.vod_id || video.vod_url_id || video.url_id || video.sn || video.number || '');
+                    if (!vId || uniqueSet.has(vId)) return;
+                    uniqueSet.add(vId);
+                    finalVideoList.push(video);
+                });
+
+            } else {
+                // 普通加载（如：最新、热门、标签专页等）
+                const apiUrl = `https://api.cos-dkop.net/api/app/v1/video/lists?${currentCategory}&page=${apiPage}&limit=30`;
+                let res = await fetchAndParseAPI(apiUrl);
+                finalVideoList = res.list;
+                maxCalculatedPage = res.maxPage;
+            }
+
+            MAX_PAGE = maxCalculatedPage;
+            if (MAX_PAGE < currentPage && finalVideoList.length > 0) MAX_PAGE = currentPage + 1;
+            pageDisplay.innerText = `${currentPage} / ${MAX_PAGE === 999 ? '?' : MAX_PAGE}`;
+
+            if(finalVideoList.length === 0) { 
+                if(!isAppend) statusMsg.innerHTML = "📭 这个词太偏门啦，标题和标签里都没找到内容"; 
+                bottomLoading.style.display = "none"; 
+                isFetching = false; 
+                return; 
+            }
+            
+            statusMsg.innerHTML = "";
+            bottomLoading.style.display = (currentPage < MAX_PAGE) ? "block" : "none";
+            
+            let html = '';
+            finalVideoList.forEach(video => {
+                let internalId = video.id || video.vod_id || video.vod_url_id || video.url_id || video.v_id || video.sn || video.number || ('vid_' + Math.random().toString(36).substr(2, 9));
+                videoDataMap[internalId] = video; 
+                
+                let badgeHtml = "";
+                if (video.duration) badgeHtml += `<div class="badge duration">${formatDuration(video.duration)}</div>`;
+                if (video.is_vip === "1" || video.is_vip === true || (video.tags && video.tags.includes('独家'))) badgeHtml += `<div class="badge vip">VIP独家</div>`;
+                let channelName = video.channel_name || "同人";
+                badgeHtml += `<div class="badge channel">${channelName}</div>`;
+
+                let uploadDate = video.adddate || formatTime(video.created_at || video.time || video.vod_time);
+                let addTimeText = video.addtime ? `<span>🕒 ${video.addtime}</span>` : "";
+                let briefTagsHtml = createJumpTags(video.cos_works, 'kw') + createJumpTags(video.cos_role || video.actor, 'kw');
+                let safeTitle = escapeHtml(video.title);
+
+                html += `
+                <div class="video-card" onclick="preparePlayer('${internalId}')">
+                    <div class="thumb-wrapper">
+                        <img class="thumb-bg" src="${video.photo || ''}" alt="" loading="lazy" onerror="this.src='${errImg}'">
+                        <img class="thumb-img" src="${video.photo || ''}" alt="封面" loading="lazy" onerror="this.src='${errImg}'">
+                        ${badgeHtml}
+                    </div>
+                    <div class="card-content">
+                        <h4 class="video-title" title="${safeTitle}">${safeTitle}</h4>
+                        <div class="time-row">
+                            <span>📅 ${uploadDate}</span>
+                            ${addTimeText}
+                        </div>
+                        <div class="tag-row">${briefTagsHtml}</div>
+                    </div>
+                </div>`;
+            });
+            
+            if(isAppend) resultDiv.insertAdjacentHTML('beforeend', html);
+            else resultDiv.innerHTML = html;
+
+            historyCache[fetchStateId] = {
+                html: resultDiv.innerHTML,
+                videoMap: Object.assign({}, videoDataMap),
+                maxPage: MAX_PAGE,
+                currentPage: currentPage,
+                scrollY: window.scrollY
+            };
+            saveCacheToStorage();
+
             isFetching = false;
         }
 
